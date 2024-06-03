@@ -29,10 +29,12 @@ from autoevent
 
 ### whl 파일 생성
 ```bash
+python setup.py sdist bdist_wheel
 python setup.py bdist_wheel
 ```
 
 > whl 파일 업로드
 ```bash
-twine upload dist/autoevent-X.X.X-py3-none-any.whl
+python -m twine upload dist/*
+twine upload dist/pyautomation-X.X.X-py3-none-any.whl
 ```
