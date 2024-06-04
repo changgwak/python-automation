@@ -26,7 +26,7 @@ import pyautomation
 ```
 
 ### How to download inspect.exe
-click this [git repo](https://github.com/changgwak/python-automation/tree/master/inspect) or [MS Official Website for inspect](https://learn.microsoft.com/en-us/windows/win32/winauto/inspect-objects)  
+Click this [git repo](https://github.com/changgwak/python-automation/tree/master/inspect) or [MS Official Website for inspect](https://learn.microsoft.com/en-us/windows/win32/winauto/inspect-objects)  
 
 
 
