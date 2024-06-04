@@ -6,14 +6,14 @@ with open('README.md', encoding='utf-8') as f:
 
 setup(
     name='python-automation',
-    version='0.2.4',
+    version='0.3.5',
     long_description = long_description,
     long_description_content_type='text/markdown',
     description='window automation package',
     author='changgwak',
     author_email='iamtony.ca@gmail.com',
     url='https://github.com/changgwak/python-automation',
-    install_requires=['opencv-python', 'numpy', 'pillow', 'pywin32', 'comtypes', 'mss'],
+    install_requires=['opencv-python', 'numpy', 'pillow', 'pywin32', 'comtypes', 'PyQt5'],
     packages=find_packages(exclude=[]),
     keywords=['pyauto', 'rpa', 'python rpa', 'python automation', 'window selenium', 'pyautomation', 'autoclick'],
     python_requires='>=3.10',

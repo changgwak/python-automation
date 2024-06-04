@@ -3,6 +3,7 @@ from . import msuiauto as msauto
 
 import win32gui, win32con, win32api
 
+
 class WinAuto() :
     def __init__(self, desired_parent_name="", desired_child_name=""):
         self.desired_parent_name = desired_parent_name
@@ -141,6 +142,21 @@ class WinAuto() :
             self.get_info(child, 0, "GetChildren")
 
 
+    def click_at(self, x, y, scale_factor=None):
+        if scale_factor is not None:
+            scaled_x, scaled_y = round(x/scale_factor), round(y/scale_factor)
+        else :
+            scaled_x, scaled_y= x, y
 
+        hwnd = win32gui.WindowFromPoint((scaled_x, scaled_y))
+        if hwnd:
+            client_coords = win32gui.ScreenToClient(hwnd, (scaled_x, scaled_y))
+            lParam = win32api.MAKELONG(client_coords[0], client_coords[1])
+            win32gui.PostMessage(hwnd, win32con.WM_ACTIVATE, win32con.WA_ACTIVE, 0)
+            win32gui.PostMessage(hwnd, win32con.WM_LBUTTONDOWN, win32con.MK_LBUTTON, lParam)
+            # win32api.Sleep(100) #ms
+            win32gui.PostMessage(hwnd, win32con.WM_LBUTTONUP, win32con.MK_LBUTTON, lParam)
+        return
 
-
+    def transform_scale(self, scale_factor):
+        pass
