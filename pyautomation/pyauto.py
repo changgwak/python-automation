@@ -1,4 +1,4 @@
-from . import msuiauto as msauto
+# from . import msuiauto as msauto
 # import msuiauto as msauto
 
 import win32gui, win32con, win32api
@@ -142,21 +142,40 @@ class WinAuto() :
             self.get_info(child, 0, "GetChildren")
 
 
-    def click_at(self, x, y, scale_factor=None):
+    def click_at(self, x, y, visible=False, scale_factor=None):
+        
         if scale_factor is not None:
-            scaled_x, scaled_y = round(x/scale_factor), round(y/scale_factor)
+            scaled_x, scaled_y = round(x/scale_factor*100), round(y/scale_factor*100)
         else :
             scaled_x, scaled_y= x, y
 
-        hwnd = win32gui.WindowFromPoint((scaled_x, scaled_y))
-        if hwnd:
-            client_coords = win32gui.ScreenToClient(hwnd, (scaled_x, scaled_y))
-            lParam = win32api.MAKELONG(client_coords[0], client_coords[1])
-            win32gui.PostMessage(hwnd, win32con.WM_ACTIVATE, win32con.WA_ACTIVE, 0)
-            win32gui.PostMessage(hwnd, win32con.WM_LBUTTONDOWN, win32con.MK_LBUTTON, lParam)
-            # win32api.Sleep(100) #ms
-            win32gui.PostMessage(hwnd, win32con.WM_LBUTTONUP, win32con.MK_LBUTTON, lParam)
+        if visible == True:
+            # Set the cursor position
+            win32api.SetCursorPos((scaled_x, scaled_y))
+            # Simulate a left mouse button down event
+            win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
+            # Simulate a left mouse button up event
+            win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)            
+
+        else :
+
+            hwnd = win32gui.WindowFromPoint((scaled_x, scaled_y))
+            if hwnd:
+                client_coords = win32gui.ScreenToClient(hwnd, (scaled_x, scaled_y))
+                lParam = win32api.MAKELONG(client_coords[0], client_coords[1])
+                win32gui.PostMessage(hwnd, win32con.WM_ACTIVATE, win32con.WA_ACTIVE, 0)
+                win32gui.PostMessage(hwnd, win32con.WM_LBUTTONDOWN, win32con.MK_LBUTTON, lParam)
+                # win32api.Sleep(100) #ms
+                win32gui.PostMessage(hwnd, win32con.WM_LBUTTONUP, win32con.MK_LBUTTON, lParam)
         return
 
     def transform_scale(self, scale_factor):
         pass
+
+
+
+
+# if __name__ == "__main__":
+#     ap = WinAuto()
+#     ap.click_at(150,30, visible=False, scale_factor=175)
+    
