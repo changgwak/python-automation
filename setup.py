@@ -2,12 +2,12 @@ from setuptools import setup, find_packages
 
 setup(
     name='python-automation',
-    version='0.1.4',
+    version='0.1.5',
     description='window automation package',
     author='changgwak',
     author_email='iamtony.ca@gmail.com',
     url='https://github.com/changgwak/python-automation',
-    install_requires=['opencv-python', 'numpy', 'pillow', 'pywin32', 'comtypes'],
+    install_requires=['opencv-python', 'numpy', 'pillow', 'pywin32', 'comtypes', 'mss'],
     packages=find_packages(exclude=[]),
     keywords=['pyauto', 'rpa', 'python rpa', 'python automation', 'window selenium', 'pyautomation', 'autoclick'],
     python_requires='>=3.10',

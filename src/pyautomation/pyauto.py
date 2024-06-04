@@ -30,17 +30,17 @@ class WinAuto() :
             child_x = child_rectangle.left
             child_y = child_rectangle.top
 
-            # # 요소의 상대 좌표 계산
+            # # callculate relative coordinate system of elements
             relative_x = child_x - parent_x
             relative_y = child_y - parent_y
 
             # print(f"요소의 상대 좌표: ({relative_x}, {relative_y})")
 
-            # # # 요소의 중앙 좌표 계산
+            # # # callculate center coordinate system of elements
             center_x = child_x + (child_rectangle.width() // 2)
             center_y = child_y + (child_rectangle.height() // 2)
 
-            # 앱 창에 대한 상대 중앙 좌표
+            # callculate relative center coordinate system of elements in an app
             relative_center_x = center_x - parent_x
             relative_center_y = center_y - parent_y
 
@@ -100,6 +100,18 @@ class WinAuto() :
         # win32gui.PostMessage(hWnd, win32con.WM_KEYDOWN, win32con.VK_RETURN, 0)
         # win32gui.PostMessage(hWnd, win32con.WM_KEYUP, win32con.VK_RETURN, 0)
 
+    def click_enter_relative_location(self, parent_control, x, y):
+        hWnd = parent_control.NativeWindowHandle
+        lParam = win32api.MAKELONG(x, y)
+        win32gui.PostMessage(hWnd, win32con.WM_ACTIVATE, win32con.WA_ACTIVE, 0)
+        win32gui.PostMessage(hWnd, win32con.WM_LBUTTONDOWN, win32con.MK_LBUTTON, lParam)
+        # win32api.Sleep(100) #ms
+        win32gui.PostMessage(hWnd, win32con.WM_LBUTTONUP, win32con.MK_LBUTTON, lParam)
+        win32api.Sleep(100) #ms
+        win32gui.PostMessage(hWnd, win32con.WM_KEYDOWN, win32con.VK_RETURN, 0)
+        win32gui.PostMessage(hWnd, win32con.WM_KEYUP, win32con.VK_RETURN, 0)
+
+
     def click_direct_child(self, child_control) :
         hwnd = child_control.NativeWindowHandle
         win32gui.PostMessage(hwnd, win32con.WM_ACTIVATE, win32con.WA_ACTIVE, 0)
@@ -110,15 +122,18 @@ class WinAuto() :
     def type_text(self, hwnd, text):
         for char in text:
             if char == "\n":
-                # 엔터 키 처리
+                # Enter event
                 win32gui.PostMessage(hwnd, win32con.WM_KEYDOWN, win32con.VK_RETURN, 0)
                 win32gui.PostMessage(hwnd, win32con.WM_KEYUP, win32con.VK_RETURN, 0)
             else:
                 win32gui.PostMessage(hwnd, win32con.WM_CHAR, ord(char), 0)
 
 
+    def hotkey_event(self):
+        pass
+
     def get_all_children(self, root):
-        ## GetChildren 메소드는 모든 자식 컨트롤을 반환
+        ## GetChildren : return all children controls
         children = root.GetChildren()
         for child in children:
             self.get_info(child, 0, "GetChildren")

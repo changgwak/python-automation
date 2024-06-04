@@ -1,2 +1,0 @@
-2024-06-03 21:46:44.107 child_uiautomation.py[16] get_info -> Find Control Timeout(10s): {Name: 'child_uiautomation.py - ws - Visual Studio Code', ControlType: PaneControl}
-2024-06-03 21:46:55.867 child_uiautomation.py[62] <module> -> 2024-06-03 22:42:34.675 child_uiautomation.py[16] get_info -> 

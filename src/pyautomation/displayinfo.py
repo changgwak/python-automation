@@ -9,5 +9,5 @@ class DisplayInfo():
             print(str(m))
 
 
-test = DisplayInfo()
-test.get_screen_info()
+# test = DisplayInfo()
+# test.get_screen_info()

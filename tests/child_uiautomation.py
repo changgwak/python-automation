@@ -137,7 +137,7 @@ def click_direct_child(child_control) :
 def type_text(hwnd, text):
     for char in text:
         if char == "\n":
-            # 엔터 키 처리
+            # Enter event
             win32gui.PostMessage(hwnd, win32con.WM_KEYDOWN, win32con.VK_RETURN, 0)
             win32gui.PostMessage(hwnd, win32con.WM_KEYUP, win32con.VK_RETURN, 0)
         else:

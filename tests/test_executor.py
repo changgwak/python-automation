@@ -1,3 +1,3 @@
-import pyautomation.src.pyauto as core
+import pyautomation.pyauto as core
 
 core
