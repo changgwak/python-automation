@@ -4,7 +4,7 @@ pyautomation is a set of Python modules designed to automate the Microsoft Windo
 
 With the pyautomation package, you can control your GUI automatically while simultaneously controlling the mouse and keyboard physically, similar to how selenium automates web browsers.
 
-### Create virtual environment(optional)
+### Create virtual environment(Recommended)
 
 ```bash
 python -m venv myvenv
@@ -16,7 +16,7 @@ source ./myvenv/Scripts/activate
 ### Installation
 
 ```bash
-pip install pyautomation
+pip install python-automation
 ```
 
 ### How to use
@@ -27,21 +27,21 @@ import pyautomation
 
 ### Download inspect.exe
 https://github.com/changgwak/python-automation/tree/master/inspect
-or
+  or  
 https://learn.microsoft.com/en-us/windows/win32/winauto/inspect-objects
 
 
 
-## How to update PYPI
+## How to update PYPI (for project manager)
 
 ### Revision codes
 1. Update on Github after modifying codes.
 
 ### Update version
 
-1. package 내 `__init__.py` 에서 `__version__`파일 업데이트
-2. `setup.py` 내 `version` 업데이트(1번과 동일하게 설정)
-3. `setup.py` 내 `install_requires`가 추가된 경우 추가 후 업데이트
+1. Update `__version__` in `__init__.py` file in package
+2. Update `version` in `setup.py` file (Same setting as first step)
+3. Update after addtion, if `install_requires` is added in `setup.py`
 
 ### Generate whl file
 ```bash

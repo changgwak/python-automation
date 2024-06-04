@@ -1,4 +1,6 @@
-import msuiauto as msauto
+from . import msuiauto as msauto
+# import msuiauto as msauto
+
 import win32gui, win32con, win32api
 
 class WinAuto() :
