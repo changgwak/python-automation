@@ -5,7 +5,7 @@
 ### Custom ###
 tmp/
 .idea/
-# @AutomationLog.txt
+@AutomationLog.txt
 
 ### JupyterNotebooks ###
 # gitignore template for Jupyter Notebooks
