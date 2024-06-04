@@ -26,15 +26,12 @@ import pyautomation
 ```
 
 ### How to download inspect.exe
-click [git repo](https://github.com/changgwak/python-automation/tree/master/inspect)
-   
-  or  
-[MS Official Website for ispect](https://learn.microsoft.com/en-us/windows/win32/winauto/inspect-objects)  
+click this [git repo](https://github.com/changgwak/python-automation/tree/master/inspect) or [MS Official Website for inspect](https://learn.microsoft.com/en-us/windows/win32/winauto/inspect-objects)  
 
 
 
 
-## How to update PYPI (for project manager)
+## How to update PYPI (for only project manager)
 
 ### Revision codes
 1. Update on Github after modifying codes.
