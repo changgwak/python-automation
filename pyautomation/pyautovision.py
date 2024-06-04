@@ -1,11 +1,8 @@
 import cv2
 import numpy as np
-from .modules.pyautogui import pyautogui
+import pyautogui
 from PIL import Image
 from .modules.screeninfo.screeninfo import get_monitors
-
-import random
-import math
 
 
 class ImageMatcher:
@@ -27,9 +24,9 @@ class ImageMatcher:
     def capture_screen(self):
         monitors = get_monitors()
         if len(monitors) > 1:
-            monitor = monitors[1]
-        else:
             monitor = monitors[0]
+        else:
+            monitor = monitors[1]
         
         screenshot = pyautogui.screenshot(region=(monitor.x, monitor.y, monitor.width, monitor.height))
         screenshot_image = np.array(screenshot)
@@ -68,7 +65,7 @@ class ImageMatcher:
             print("Not enough matches are found - {}/{}".format(len(good_matches), min_match_count))
             self.object_location = None
         
-        return self.object_center
+        return self.object_center, self.object_location
     
 
 
@@ -92,8 +89,17 @@ class ImageMatcher:
         print(object_location_center)
         self.draw_object_location()
 
+    def get_object_location(self):
+        self.capture_screen()
+        kp1, des1, kp2, des2 = self.find_features()
+        self.matches = self.match_features(des1, des2)
+        self.good_matches = self.filter_good_matches(self.matches)
+        object_location = self.find_object_location(kp1, kp2, self.good_matches)
+        return object_location
+
 # if __name__ == "__main__":
-#     template_path = r'..\object_detection\small_wrtn.JPG'
+#     # template_path = r'..\tests\images\test.jpg'
+        ## absolute directory
 #     matcher = ImageMatcher(template_path)
-#     matcher.run()
+#     print(matcher.get_object_location())
 

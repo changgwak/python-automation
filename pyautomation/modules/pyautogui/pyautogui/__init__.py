@@ -177,7 +177,7 @@ def raisePyAutoGUIImageNotFoundException(wrappedFunction):
 
 
 try:
-    import pyscreeze
+    # from ..pyautogui import pyscreeze
     from pyscreeze import center, pixel, pixelMatchesColor, screenshot
 
     # Change the locate*() functions so that they raise PyAutoGUI's ImageNotFoundException instead.

@@ -177,5 +177,5 @@ class WinAuto() :
 
 # if __name__ == "__main__":
 #     ap = WinAuto()
-#     ap.click_at(150,30, visible=False, scale_factor=175)
+#     ap.click_at(150,30, visible=True, scale_factor=175)
     
