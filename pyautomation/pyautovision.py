@@ -1,9 +1,11 @@
 import cv2
 import numpy as np
-import pyautogui
 from PIL import Image
-from .modules.screeninfo.screeninfo import get_monitors
+# import pyautogui
 
+# from .modules.pyautogui import pyautogui
+from .modules.screeninfo.screeninfo import get_monitors
+from .modules import mss
 
 class ImageMatcher:
     def __init__(self, template_path):
@@ -20,17 +22,36 @@ class ImageMatcher:
             return cv2.imread(path, cv2.IMREAD_GRAYSCALE)
         else:
             return cv2.imread(path)
-    
+
     def capture_screen(self):
-        monitors = get_monitors()
-        if len(monitors) > 1:
-            monitor = monitors[0]
-        else:
-            monitor = monitors[1]
+        with mss.mss() as sct:
+            # Get a list of monitors. all monitors, 1st monitor, 2nd monitor...
+            # print(sct.monitors)
+            # for monitor_number, monitor in enumerate(sct.monitors[1:2], 1):  # Excludes the first item (full screen)
+            for monitor_number, monitor in enumerate(sct.monitors[0:1], 0):  # including all monitors   
+                # Capture screenshots for each monitor.
+                screenshot = sct.grab(monitor)
+                
+                # Convert the screenshot to a NumPy array.
+                img = np.array(screenshot)
+                
+                # OpenCV uses BGR format, so convert from RGB to BGR.
+                self.screenshot_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                
+                # Show screenshot.
+                # cv2.imshow(f'Monitor {monitor_number}', img)
+
+
+    # def capture_screen_pyautogui(self):
+    #     monitors = get_monitors()
+    #     if len(monitors) > 1:
+    #         monitor = monitors[0]
+    #     else:
+    #         monitor = monitors[1]
         
-        screenshot = pyautogui.screenshot(region=(monitor.x, monitor.y, monitor.width, monitor.height))
-        screenshot_image = np.array(screenshot)
-        self.screenshot_image = cv2.cvtColor(screenshot_image, cv2.COLOR_BGR2GRAY)
+    #     screenshot = pyautogui.screenshot(region=(monitor.x, monitor.y, monitor.width, monitor.height))
+    #     screenshot_image = np.array(screenshot)
+    #     self.screenshot_image = cv2.cvtColor(screenshot_image, cv2.COLOR_BGR2GRAY)
     
     def find_features(self):
         sift = cv2.SIFT_create()

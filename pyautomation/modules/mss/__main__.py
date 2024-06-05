@@ -5,10 +5,10 @@ import os.path
 import sys
 from argparse import ArgumentParser
 
-from mss import __version__
-from mss.exception import ScreenShotError
-from mss.factory import mss
-from mss.tools import to_png
+from ..mss import __version__
+from ..mss.exception import ScreenShotError
+from ..mss.factory import mss
+from ..mss.tools import to_png
 
 
 def main(*args: str) -> int:

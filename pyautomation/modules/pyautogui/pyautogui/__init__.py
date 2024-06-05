@@ -158,7 +158,7 @@ except ImportError:
 
     alert = confirm = prompt = password = _couldNotImportPyMsgBox
 
-
+import pyscreeze
 def raisePyAutoGUIImageNotFoundException(wrappedFunction):
     """
     A decorator that wraps PyScreeze locate*() functions so that the PyAutoGUI user sees them raise PyAutoGUI's

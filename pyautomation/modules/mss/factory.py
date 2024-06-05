@@ -22,17 +22,17 @@ def mss(**kwargs: Any) -> MSSBase:
     os_ = platform.system().lower()
 
     if os_ == "darwin":
-        from mss import darwin
+        from ..mss import darwin
 
         return darwin.MSS(**kwargs)
 
     if os_ == "linux":
-        from mss import linux
+        from ..mss import linux
 
         return linux.MSS(**kwargs)
 
     if os_ == "windows":
-        from mss import windows
+        from ..mss import windows
 
         return windows.MSS(**kwargs)
 
