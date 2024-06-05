@@ -21,7 +21,24 @@ pip install python-automation
 
 ### How to use
 ```python
-import pyautomation
+import os
+import time
+
+import pyautomation.msuiauto as auto
+import pyautomation.pyauto as pyapp
+
+
+os.system ('notepad.exe')
+time.sleep(5)
+window = auto.WindowControl(searchDepth=1, ClassName='Notepad')
+pyauto = pyapp.WinAuto(window.Name, "Text Editor")
+# pyauto = pyapp.WinAuto(window.Name, "텍스트 편집기")
+result, depth = pyauto.walk_and_find(window)
+pyauto.type_text(result.NativeWindowHandle, "hello notepad!")
+
+import pyautomation.displayinfo as pydis
+print(pydis.DisplayInfo().get_scale_factor(pydis.DisplayInfo().get_Qapp()))
+print(pydis.DisplayInfo().get_screen_info())
 
 ```
 
