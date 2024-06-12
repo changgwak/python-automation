@@ -1,76 +1,104 @@
+
 import cv2
 import numpy as np
-from PIL import Image
-# import pyautogui
-
-# from .modules.pyautogui import pyautogui
-from .modules.screeninfo.screeninfo import get_monitors
 from .modules import mss
+import logging
+import asyncio
+from typing import Optional, Tuple, List, Dict, Any
+from concurrent.futures import ThreadPoolExecutor
+import aiofiles
+import yaml
+import argparse
+import os
+from pydantic import BaseModel, ValidationError, validator
+from injector import Injector, inject, Module, singleton, provider
+from dataclasses import dataclass, field
 
+# Structured logging configuration
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+class ConfigModel(BaseModel):
+    monitor_index: int
+    ratio: float
+    min_match_count: int
+
+    @validator('ratio')
+    def ratio_must_be_between_0_and_1(cls, v):
+        if not 0 <= v <= 1:
+            raise ValueError('ratio must be between 0 and 1')
+        return v
+
+class ConfigModule(Module):
+    def __init__(self, config_path: str):
+        self.config_path = config_path
+
+    @singleton
+    @provider
+    def provide_config(self) -> ConfigModel:
+        with open(self.config_path, 'r') as file:
+            config_dict = yaml.safe_load(file)
+        try:
+            return ConfigModel(**config_dict)
+        except ValidationError as e:
+            logging.error(f"Configuration validation error: {e}")
+            raise
+
+@dataclass
 class ImageMatcher:
-    def __init__(self, template_path):
-        self.template_path = template_path
-        self.template_image = self.load_image(template_path)
-        self.screenshot_image = None
-        self.matches = None
-        self.good_matches = None
-        self.object_location = None
-        self.object_center = None
-    
-    def load_image(self, path, grayscale=True):
-        if grayscale:
-            return cv2.imread(path, cv2.IMREAD_GRAYSCALE)
-        else:
-            return cv2.imread(path)
+    template_path: str
+    config: ConfigModel
 
-    def capture_screen(self):
+    template_image: Optional[np.ndarray] = field(init=False, default=None)
+    screenshot_image: Optional[np.ndarray] = field(init=False, default=None)
+    matches: Optional[List] = field(init=False, default=None)
+    good_matches: Optional[List] = field(init=False, default=None)
+    object_location: Optional[np.ndarray] = field(init=False, default=None)
+    object_center: Optional[Tuple[int, int]] = field(init=False, default=None)
+
+    @inject
+    def __post_init__(self):
+        pass
+
+    async def load_image(self, path: str, grayscale: bool = True) -> np.ndarray:
+        async with aiofiles.open(path, mode='rb') as f:
+            image_data = await f.read()
+        image_array = np.frombuffer(image_data, np.uint8)
+        image = cv2.imdecode(image_array, cv2.IMREAD_GRAYSCALE if grayscale else cv2.IMREAD_COLOR)
+        if image is None:
+            logging.error(f"Image not found at path: {path}")
+            raise FileNotFoundError(f"Image not found at path: {path}")
+        logging.info(f"Image loaded from path: {path}")
+        return image
+
+    async def capture_screen(self) -> None:
         with mss.mss() as sct:
-            # Get a list of monitors. all monitors, 1st monitor, 2nd monitor...
-            # print(sct.monitors)
-            # for monitor_number, monitor in enumerate(sct.monitors[1:2], 1):  # Excludes the first item (full screen)
-            for monitor_number, monitor in enumerate(sct.monitors[0:1], 0):  # including all monitors   
-                # Capture screenshots for each monitor.
-                screenshot = sct.grab(monitor)
-                
-                # Convert the screenshot to a NumPy array.
-                img = np.array(screenshot)
-                
-                # OpenCV uses BGR format, so convert from RGB to BGR.
-                self.screenshot_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-                
-                # Show screenshot.
-                # cv2.imshow(f'Monitor {monitor_number}', img)
+            monitor = sct.monitors[self.config.monitor_index]  # Configurable monitor index
+            screenshot = sct.grab(monitor)
+            img = np.array(screenshot)
+            self.screenshot_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            logging.info("Screen captured successfully")
 
-
-    # def capture_screen_pyautogui(self):
-    #     monitors = get_monitors()
-    #     if len(monitors) > 1:
-    #         monitor = monitors[0]
-    #     else:
-    #         monitor = monitors[1]
-        
-    #     screenshot = pyautogui.screenshot(region=(monitor.x, monitor.y, monitor.width, monitor.height))
-    #     screenshot_image = np.array(screenshot)
-    #     self.screenshot_image = cv2.cvtColor(screenshot_image, cv2.COLOR_BGR2GRAY)
-    
-    def find_features(self):
+    @staticmethod
+    async def find_features(image: np.ndarray) -> Tuple[List[cv2.KeyPoint], np.ndarray]:
         sift = cv2.SIFT_create()
-        kp1, des1 = sift.detectAndCompute(self.template_image, None)
-        kp2, des2 = sift.detectAndCompute(self.screenshot_image, None)
-        return kp1, des1, kp2, des2
-    
-    def match_features(self, des1, des2):
+        keypoints, descriptors = sift.detectAndCompute(image, None)
+        return keypoints, descriptors
+
+    @staticmethod
+    def match_features(des1: np.ndarray, des2: np.ndarray) -> List:
         index_params = dict(algorithm=1, trees=5)
         search_params = dict(checks=50)
         flann = cv2.FlannBasedMatcher(index_params, search_params)
         matches = flann.knnMatch(des1, des2, k=2)
         return matches
-    
-    def filter_good_matches(self, matches, ratio=0.7):
-        good_matches = [m for m, n in matches if m.distance < ratio * n.distance]
-        return good_matches
-    
-    def find_object_location(self, kp1, kp2, good_matches, min_match_count=10):
+
+    @staticmethod
+    def filter_good_matches(matches: List, ratio: float) -> List:
+        return [m for m, n in matches if m.distance < ratio * n.distance]
+
+    def find_object_location(
+        self, kp1: List[cv2.KeyPoint], kp2: List[cv2.KeyPoint], good_matches: List, min_match_count: int
+    ) -> Tuple[Optional[Tuple[int, int]], Optional[np.ndarray]]:
         if len(good_matches) > min_match_count:
             src_pts = np.float32([kp1[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
             dst_pts = np.float32([kp2[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
@@ -81,46 +109,64 @@ class ImageMatcher:
             dst = cv2.perspectiveTransform(pts, M)
 
             self.object_location = np.int32(dst)
-            self.object_center = int((dst[0][0][0] + dst[2][0][0]) / 2), int((dst[0][0][1] + dst[2][0][1]) / 2)
+            self.object_center = (int((dst[0][0][0] + dst[2][0][0]) / 2), int((dst[0][0][1] + dst[2][0][1]) / 2))
         else:
-            print("Not enough matches are found - {}/{}".format(len(good_matches), min_match_count))
+            logging.warning(f"Not enough matches are found - {len(good_matches)}/{min_match_count}")
             self.object_location = None
+            self.object_center = None
         
         return self.object_center, self.object_location
-    
 
-
-
-    
-    def draw_object_location(self, color=(0, 255, 0), thickness=3):
+    def draw_object_location(self, color: Tuple[int, int, int] = (0, 255, 0), thickness: int = 3) -> None:
         if self.object_location is not None:
-            input_image2_bgr = cv2.cvtColor(self.screenshot_image, cv2.COLOR_GRAY2BGR)
-            input_image2_bgr = cv2.polylines(input_image2_bgr, [self.object_location], True, color, thickness, cv2.LINE_AA)
-            cv2.imshow("image1", self.template_image)
-            cv2.imshow("Detected Object", input_image2_bgr)
+            input_image_bgr = cv2.cvtColor(self.screenshot_image, cv2.COLOR_GRAY2BGR)
+            input_image_bgr = cv2.polylines(input_image_bgr, [self.object_location], True, color, thickness, cv2.LINE_AA)
+            cv2.imshow("Template Image", self.template_image)
+            cv2.imshow("Detected Object", input_image_bgr)
             cv2.waitKey(0)
             cv2.destroyAllWindows()
-    
-    def run(self):
-        self.capture_screen()
-        kp1, des1, kp2, des2 = self.find_features()
-        self.matches = self.match_features(des1, des2)
-        self.good_matches = self.filter_good_matches(self.matches)
-        object_location_center = self.find_object_location(kp1, kp2, self.good_matches)
-        print(object_location_center)
+        else:
+            logging.info("No object location found to draw")
+
+    async def process_image(self) -> None:
+        kp1, des1 = await self.find_features(self.template_image)
+        kp2, des2 = await self.find_features(self.screenshot_image)
+        matches = self.match_features(des1, des2)
+        good_matches = self.filter_good_matches(matches, self.config.ratio)
+        self.find_object_location(kp1, kp2, good_matches, self.config.min_match_count)
+        logging.info("Image processing completed")
+
+    async def run(self) -> None:
+        self.template_image = await self.load_image(self.template_path)
+        await self.capture_screen()
+        await self.process_image()
+        logging.info(f"Object center: {self.object_center}")
         self.draw_object_location()
 
-    def get_object_location(self):
-        self.capture_screen()
-        kp1, des1, kp2, des2 = self.find_features()
-        self.matches = self.match_features(des1, des2)
-        self.good_matches = self.filter_good_matches(self.matches)
-        object_location = self.find_object_location(kp1, kp2, self.good_matches)
-        return object_location
+    async def get_object_location(self) -> Tuple[Optional[Tuple[int, int]], Optional[np.ndarray]]:
+        await self.run()
+        return self.object_center, self.object_location
 
-# if __name__ == "__main__":
-#     # template_path = r'..\tests\images\test.jpg'
-        ## absolute directory
-#     matcher = ImageMatcher(template_path)
-#     print(matcher.get_object_location())
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Image Matcher Configuration")
+    parser.add_argument('--config', type=str, default='config.yaml', help='Path to the configuration file')
+    parser.add_argument('--template', type=str, required=True, help='Path to the template image')
+    return parser.parse_args()
 
+def main():
+    args = parse_args()
+    injector = Injector([ConfigModule(args.config)])
+    matcher = injector.create_object(ImageMatcher, additional_kwargs={'template_path': args.template})
+    asyncio.run(matcher.run())
+
+if __name__ == "__main__":
+    main()
+
+## Example of config.yaml
+# monitor_index: 1
+# ratio: 0.7
+# min_match_count: 10
+
+
+## Usage(sh)
+# python your_script.py --template path_to_your_template_image.jpg --config path_to_your_config.yaml
