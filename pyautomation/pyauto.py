@@ -1,5 +1,5 @@
 # from . import msuiauto as msauto
-# import msuiauto as msauto
+import .msuiauto as msauto
 
 import logging
 import os
@@ -24,6 +24,14 @@ load_dotenv()
 # Setup structured logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+# Control profiling log output
+PROFILE_LOGGING_ENABLED = os.getenv('PROFILE_LOGGING_ENABLED', 'False').lower() == 'true'
+
+# Control comtypes DEBUG logs
+COMTYPES_DEBUG_LOGGING_ENABLED = os.getenv('COMTYPES_DEBUG_LOGGING_ENABLED', 'False').lower() == 'true'
+comtypes_logger = logging.getLogger('comtypes')
+comtypes_logger.setLevel(logging.DEBUG if COMTYPES_DEBUG_LOGGING_ENABLED else logging.WARNING)
 
 class WinAutoError(Exception):
     """Custom exception for WinAuto errors."""
@@ -52,10 +60,12 @@ def profile(func):
     """A decorator that profiles the execution time of a function."""
     @wraps(func)
     def wrapper(*args, **kwargs):
+        # PROFILE_LOGGING_ENABLED = False
         start_time = time.time()
         result = func(*args, **kwargs)
         end_time = time.time()
-        logging.info(f"Function {func.__name__} took {end_time - start_time:.4f} seconds")
+        if PROFILE_LOGGING_ENABLED:
+            logging.info(f"Function {func.__name__} took {end_time - start_time:.4f} seconds")
         return result
     return wrapper
 

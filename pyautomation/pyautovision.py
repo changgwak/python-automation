@@ -1,7 +1,7 @@
 
 import cv2
 import numpy as np
-from .modules import mss
+from modules import mss
 import logging
 import asyncio
 from typing import Optional, Tuple, List, Dict, Any
@@ -10,7 +10,7 @@ import aiofiles
 import yaml
 import argparse
 import os
-from pydantic import BaseModel, ValidationError, validator
+from pydantic import BaseModel, ValidationError, field_validator
 from injector import Injector, inject, Module, singleton, provider
 from dataclasses import dataclass, field
 
@@ -22,7 +22,7 @@ class ConfigModel(BaseModel):
     ratio: float
     min_match_count: int
 
-    @validator('ratio')
+    @field_validator('ratio')
     def ratio_must_be_between_0_and_1(cls, v):
         if not 0 <= v <= 1:
             raise ValueError('ratio must be between 0 and 1')
