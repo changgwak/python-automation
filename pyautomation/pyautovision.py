@@ -1,7 +1,6 @@
-
 import cv2
 import numpy as np
-from modules import mss
+from .modules import mss
 import logging
 import asyncio
 from typing import Optional, Tuple, List, Dict, Any
@@ -9,7 +8,6 @@ from concurrent.futures import ThreadPoolExecutor
 import aiofiles
 import yaml
 import argparse
-import os
 from pydantic import BaseModel, ValidationError, field_validator
 from injector import Injector, inject, Module, singleton, provider
 from dataclasses import dataclass, field
@@ -21,6 +19,7 @@ class ConfigModel(BaseModel):
     monitor_index: int
     ratio: float
     min_match_count: int
+    template_path: str
 
     @field_validator('ratio')
     def ratio_must_be_between_0_and_1(cls, v):
@@ -45,7 +44,6 @@ class ConfigModule(Module):
 
 @dataclass
 class ImageMatcher:
-    template_path: str
     config: ConfigModel
 
     template_image: Optional[np.ndarray] = field(init=False, default=None)
@@ -98,7 +96,7 @@ class ImageMatcher:
 
     def find_object_location(
         self, kp1: List[cv2.KeyPoint], kp2: List[cv2.KeyPoint], good_matches: List, min_match_count: int
-    ) -> Tuple[Optional[Tuple[int, int]], Optional[np.ndarray]]:
+        ) -> Tuple[Optional[Tuple[int, int]], Optional[np.ndarray]]:
         if len(good_matches) > min_match_count:
             src_pts = np.float32([kp1[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
             dst_pts = np.float32([kp2[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
@@ -129,44 +127,39 @@ class ImageMatcher:
             logging.info("No object location found to draw")
 
     async def process_image(self) -> None:
+        self.template_image = await self.load_image(self.config.template_path)
+        await self.capture_screen()
         kp1, des1 = await self.find_features(self.template_image)
         kp2, des2 = await self.find_features(self.screenshot_image)
         matches = self.match_features(des1, des2)
-        good_matches = self.filter_good_matches(matches, self.config.ratio)
-        self.find_object_location(kp1, kp2, good_matches, self.config.min_match_count)
+        self.good_matches = self.filter_good_matches(matches, self.config.ratio)
+        self.find_object_location(kp1, kp2, self.good_matches, self.config.min_match_count)
         logging.info("Image processing completed")
 
     async def run(self) -> None:
-        self.template_image = await self.load_image(self.template_path)
-        await self.capture_screen()
         await self.process_image()
         logging.info(f"Object center: {self.object_center}")
-        self.draw_object_location()
+        # self.draw_object_location()
 
     async def get_object_location(self) -> Tuple[Optional[Tuple[int, int]], Optional[np.ndarray]]:
         await self.run()
         return self.object_center, self.object_location
 
-def parse_args() -> argparse.Namespace:
+def parse_args(path) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Image Matcher Configuration")
-    parser.add_argument('--config', type=str, default='config.yaml', help='Path to the configuration file')
-    parser.add_argument('--template', type=str, required=True, help='Path to the template image')
+    parser.add_argument('--config', type=str, help='Path to the configuration file', default=path)
     return parser.parse_args()
 
-def main():
-    args = parse_args()
+def main(path):
+    args = parse_args(path)
     injector = Injector([ConfigModule(args.config)])
-    matcher = injector.create_object(ImageMatcher, additional_kwargs={'template_path': args.template})
+    config = injector.get(ConfigModel)
+    matcher = ImageMatcher(config=config)
     asyncio.run(matcher.run())
+    return matcher
 
 if __name__ == "__main__":
     main()
 
-## Example of config.yaml
-# monitor_index: 1
-# ratio: 0.7
-# min_match_count: 10
 
 
-## Usage(sh)
-# python your_script.py --template path_to_your_template_image.jpg --config path_to_your_config.yaml

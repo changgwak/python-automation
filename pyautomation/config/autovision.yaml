@@ -1,3 +1,7 @@
-monitor_index: 0
+monitor_index: 1
 ratio: 0.7
 min_match_count: 10
+template_path: ..\tests\images\fastcampus_business.JPG
+
+
+# ../../python-automation\tests\images\fastcampus_business.JPG

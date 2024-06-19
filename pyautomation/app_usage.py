@@ -34,12 +34,6 @@
 
 
 
-from pyautovision import ImageMatcher, ConfigModel
-
-# Configuration for testing
-test_config = ConfigModel(monitor_index=0, ratio=0.7, min_match_count=10)
-
-def matcher():
-    return ImageMatcher(template_path=r'..\python-automation\tests\images\youtube.JPG', config=test_config)
-
-print(matcher())
+import pyautovision
+a = pyautovision.main(r'config/autovision.yaml')
+print(a.object_center, a.object_location)
