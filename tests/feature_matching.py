@@ -1,11 +1,11 @@
 import cv2
 import numpy as np
-from ..pyautomation.modules.pyautogui import pyautogui
-from PIL import Image
-from ..pyautomation.modules.screeninfo import get_monitors
+from modules.pyautogui import pyautogui
+# from PIL import Image
+from modules.screeninfo import get_monitors
 
-import random
-import math
+# import random
+# import math
 
 
 class ImageMatcher:
@@ -93,7 +93,7 @@ class ImageMatcher:
         self.draw_object_location()
 
 if __name__ == "__main__":
-    template_path = r'..\object_detection\small_wrtn.JPG'
+    template_path = r'..\python-automation\tests\images\youtube.JPG'
     matcher = ImageMatcher(template_path)
     matcher.run()
 
