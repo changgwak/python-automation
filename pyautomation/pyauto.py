@@ -72,21 +72,60 @@ def profile(func):
 class Config(BaseModel):
     desired_parent_name: Optional[str] = ""
     desired_child_name: Optional[str] = ""
-    scale_factor: Optional[float] = None
+    # scale_factor: Optional[float] = None
+    monitor_index: Optional[int] = None
 
 class ConfigLoader:
     """A class responsible for loading configuration."""
+    
     @staticmethod
-    def load_config(file_path: str) -> Config:
-        with open(file_path, 'r') as config_file:
-            config_data = json.load(config_file)
-            return Config(**config_data)
+    def load_config(file_path=None, **kwargs) -> Config:
+        # with open(file_path, 'r') as config_file:
+        #     config_data = json.load(config_file)
+
+        # Default parameters
+        config_data = {
+                "desired_parent_name": "app_usage.py - python-autoevent - Visual Studio Code",
+                "desired_child_name": "GitLens Inspect",
+                # "scale_factor": 1.5,
+                "monitor_index": 1
+            }
+        # print(type(data))
+        if file_path is not None:
+            # Check if input is a file path
+            if os.path.isfile(file_path):
+                with open(file_path, 'r') as file:
+                    file_data = json.load(file)
+                    config_data.update(file_data)
+            else:
+                try:
+                    json_data = json.loads(file_path)
+                    config_data.update(json_data)
+                except json.JSONDecodeError:
+                    print("Invalid JSON data")
+                    return None
+        else:
+            config_data.update(kwargs)
+
+
+        # print("********************", config_data)
+        return Config(**config_data)
+
+
+
 
 @singleton
 class WinAuto:
     @inject
-    def __init__(self, config: Config):
+    def __init__(self, config: Config = None):
         self.config = config
+        self.scale_factor = self.get_scale_factor()
+
+    def get_scale_factor(self):
+    #     import displayinfo as pydis
+    #     scale_factors=pydis.DisplayInfo().get_scale_factor(pydis.DisplayInfo().get_Qapp())
+    #     return scale_factors[self.config.monitor_index-1]
+        return None
 
     @log_exceptions(LogLevel.ERROR)
     def get_info(self, control: Any, depth: int = 0, delimiter: str = "") -> None:
@@ -117,13 +156,14 @@ class WinAuto:
 
     @profile
     @log_exceptions(LogLevel.ERROR)
-    def walk_and_find(self, control: Any, depth: int = 0) -> Tuple[Optional[Any], Optional[int]]:
+    def walk_and_find(self, control: Any, depth: int = 0, debug: bool = False) -> Tuple[Optional[Any], Optional[int]]:
         """Recursively finds a control by name."""
         condition = lambda c: c.Name == self.config.desired_child_name
         if condition(control):
             return control, depth
         for child in control.GetChildren():
-            self.get_info(child, depth, "**child")
+            if debug is False: pass
+            elif debug is True: self.get_info(child, depth, "**child")
             result, result_depth = self.walk_and_find(child, depth + 1)
             if result:
                 return result, result_depth
@@ -199,7 +239,13 @@ class WinAuto:
     def click_at(self, x: int, y: int, visible: bool = False, scale_factor: Optional[float] = None) -> None:
         """Clicks at a specified screen location, optionally scaled and made visible."""
         try:
-            scaled_x, scaled_y = self._apply_scaling(x, y, scale_factor)
+            if scale_factor is not None :
+                scale_factor_monitor = scale_factor
+            elif scale_factor is None:
+                scale_factor_monitor = self.scale_factor
+
+            # print("scale_factor_monitor: ", scale_factor_monitor)
+            scaled_x, scaled_y = self._apply_scaling(x, y, scale_factor_monitor)
             if visible:
                 self._visible_click(scaled_x, scaled_y)
             else:
@@ -208,9 +254,11 @@ class WinAuto:
             logger.error(f"Error in click_at: {e}")
             raise WinAutoError("Failed to click at specified location")
 
+
     def _apply_scaling(self, x: int, y: int, scale_factor: Optional[float]) -> Tuple[int, int]:
+        scale_factor = 1.0
         if scale_factor:
-            return round(x / scale_factor * 100), round(y / scale_factor * 100)
+            return round(x / scale_factor), round(y / scale_factor)
         return x, y
 
     def _visible_click(self, x: int, y: int) -> None:
@@ -228,11 +276,19 @@ class WinAuto:
             win32api.Sleep(100)
             win32gui.PostMessage(hwnd, win32con.WM_LBUTTONUP, win32con.MK_LBUTTON, lParam)
 
+
+
+
     @log_exceptions(LogLevel.ERROR)
     async def async_click_at(self, x: int, y: int, visible: bool = False, scale_factor: Optional[float] = None) -> None:
         """Asynchronously clicks at a specified screen location, optionally scaled and made visible."""
         try:
-            scaled_x, scaled_y = self._apply_scaling(x, y, scale_factor)
+            if scale_factor is not None :
+                scale_factor_monitor = scale_factor
+            elif scale_factor is None:
+                scale_factor_monitor = self.scale_factor
+            
+            scaled_x, scaled_y = self._apply_scaling(x, y, scale_factor_monitor)
             if visible:
                 await self._async_visible_click(scaled_x, scaled_y)
             else:
@@ -273,7 +329,7 @@ class WinAuto:
     @log_exceptions(LogLevel.ERROR)
     def transform_scale(self, scale_factor: float) -> None:
         """Transforms the scale factor used for UI operations."""
-        self.config.scale_factor = scale_factor
+        self.scale_factor = scale_factor
 
 # Example usage
 if __name__ == "__main__":
@@ -290,10 +346,11 @@ if __name__ == "__main__":
         ap = injector.get(WinAuto)
         
         # Example synchronous click
-        ap.click_at(150, 30, visible=True, scale_factor=1.75)
+        ap.click_at(38, 864, visible=False, scale_factor=1.75)
         
+        time.sleep(1.5)
         # Example asynchronous click
-        asyncio.run(ap.async_click_at(150, 30, visible=False, scale_factor=1.75))
+        asyncio.run(ap.async_click_at(38, 864, visible=False, scale_factor=1.75))
         
         # Load a plugin
         ap.load_plugin('example_plugin')
