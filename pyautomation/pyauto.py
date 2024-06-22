@@ -1,3 +1,16 @@
+"""
+pyautomation for Python 3.
+Author: iamtony.ca@gmail.com
+Source: https://github.com/changgwak/python-automation
+
+This module is for Automation on Windows os.
+With the pyautomation package, you can control your GUI automatically while simultaneously controlling the mouse and keyboard physically, similar to how selenium automates web browsers.
+Read 'readme.md' for help.
+
+pyautomation is shared under the MIT Licene.
+This means that the code can be freely copied and distributed, and costs nothing to use.
+"""
+
 from . import msuiauto as msauto
 # import msuiauto as msauto
 
