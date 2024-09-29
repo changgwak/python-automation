@@ -55,10 +55,10 @@ class ConfigModule(Module):
         import os
 
         config_dict = {
-            'monitor_index': 1,
+            'monitor_index': 0,
             'ratio': 0.7,
             'min_match_count': 15,
-            'template_path': 'myvenv/imgs/fastcampus_business.JPG',
+            'template_path': 'myvenv/imgs/sports.jpg',
             'show': False
         }
 
@@ -93,7 +93,12 @@ class ImageMatcher:
     matches: Optional[List] = field(init=False, default=None)
     good_matches: Optional[List] = field(init=False, default=None)
     object_location: Optional[np.ndarray] = field(init=False, default=None)
-    object_center: Optional[Tuple[int, int]] = field(init=False, default=None)
+    # object_center: Optional[Tuple[int, int]] = field(init=False, default=None)
+    object_center: Optional[List[int]] = field(init=False, default=None)
+    
+    monitor_shift_left: int = field(init=False, default=0)
+    monitor_shift_top: int = field(init=False, default=0)
+
 
     @inject
     def __post_init__(self):
@@ -117,6 +122,8 @@ class ImageMatcher:
         with mss.mss() as sct:
             monitor = sct.monitors[self.config.monitor_index]  # Configurable monitor index
             # print(monitor)
+            self.monitor_shift_left = monitor['left']
+            self.monitor_shift_top = monitor['top']
             screenshot = sct.grab(monitor)
             img = np.array(screenshot)
             self.screenshot_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -153,7 +160,12 @@ class ImageMatcher:
             dst = cv2.perspectiveTransform(pts, M)
 
             self.object_location = np.int32(dst)
-            self.object_center = (int((dst[0][0][0] + dst[2][0][0]) / 2), int((dst[0][0][1] + dst[2][0][1]) / 2))
+            # self.object_center = (int((dst[0][0][0] + dst[2][0][0]) / 2), int((dst[0][0][1] + dst[2][0][1]) / 2))
+            self.object_center = [int((dst[0][0][0] + dst[2][0][0]) / 2), int((dst[0][0][1] + dst[2][0][1]) / 2)]
+
+            self.object_center[0] += self.monitor_shift_left
+            self.object_center[1] += self.monitor_shift_top
+            
         else:
             logging.warning(f"Not enough matches are found - {len(good_matches)}/{min_match_count}")
             self.object_location = None

@@ -69,7 +69,7 @@ import pyautomation.pyautovision as vs
 min_match_count=15
 template_path= r".\imgs\fcfb.jpg"
 
-a = vs.image_matcher(min_match_count=min_match_count, template_path=template_path, show=False)
+a = vs.image_matcher(monitor_index=0, min_match_count=min_match_count, template_path=template_path, show=False)
 print(a.object_center, a.object_location)
 
 
