@@ -69,11 +69,12 @@ import pyautomation.pyautovision as vs
 min_match_count=15
 template_path= r".\imgs\fcfb.jpg"
 
-a = vs.main(min_match_count=min_match_count, template_path=template_path, show=False)
+a = vs.image_matcher(min_match_count=min_match_count, template_path=template_path, show=False)
 print(a.object_center, a.object_location)
 
 
 ## click from image
+# if a.object_center is not None:
 wa.click_at(a.object_center[0], a.object_center[1], visible=False)
 
 

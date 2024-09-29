@@ -11,15 +11,16 @@ pyautomation is shared under the MIT Licene.
 This means that the code can be freely copied and distributed, and costs nothing to use.
 """
 
+
 import cv2
 import numpy as np
 from .modules import mss
+# import mss
 import logging
 import asyncio
-from typing import Optional, Tuple, List, Dict, Any
-from concurrent.futures import ThreadPoolExecutor
+from typing import Optional, Tuple, List
 import aiofiles
-import yaml     #pyyaml
+import yaml  # pyyaml
 import argparse
 from pydantic import BaseModel, ValidationError, field_validator
 from injector import Injector, inject, Module, singleton, provider
@@ -27,6 +28,7 @@ from dataclasses import dataclass, field
 
 # Structured logging configuration
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 
 class ConfigModel(BaseModel):
     monitor_index: int
@@ -41,33 +43,27 @@ class ConfigModel(BaseModel):
             raise ValueError('ratio must be between 0 and 1')
         return v
 
+
 class ConfigModule(Module):
     def __init__(self, config_path: str = None, **kwargs):
         self.config_path = config_path
         self.kwargs = kwargs
-
-        # print(config_path, kwargs)
-
 
     @singleton
     @provider
     def provide_config(self) -> ConfigModel:
         import os
 
-        # Default parameters
         config_dict = {
-            'monitor_index': 1, 
-            'ratio': 0.7, 
-            'min_match_count': 15, 
+            'monitor_index': 1,
+            'ratio': 0.7,
+            'min_match_count': 15,
             'template_path': 'myvenv/imgs/fastcampus_business.JPG',
             'show': False
-            }
+        }
 
         if self.config_path is not None:
-            # print("# Check if input is a file path")
-            # Check if input is a file path
             if os.path.isfile(self.config_path):
-                # print("os.path.isfile(self.config_path):")
                 with open(self.config_path, 'r') as file:
                     file_data = yaml.safe_load(file)
                     config_dict.update(file_data)
@@ -80,13 +76,13 @@ class ConfigModule(Module):
                     return None
         else:
             config_dict.update(self.kwargs)
-            # print("result of config_dict: ", config_dict)
 
         try:
             return ConfigModel(**config_dict)
         except ValidationError as e:
             logging.error(f"Configuration validation error: {e}")
             raise
+
 
 @dataclass
 class ImageMatcher:
@@ -104,6 +100,7 @@ class ImageMatcher:
         pass
 
     async def load_image(self, path: str, grayscale: bool = True) -> np.ndarray:
+        """Asynchronously load image from file."""
         async with aiofiles.open(path, mode='rb') as f:
             image_data = await f.read()
         image_array = np.frombuffer(image_data, np.uint8)
@@ -114,9 +111,12 @@ class ImageMatcher:
         logging.info(f"Image loaded from path: {path}")
         return image
 
+
     async def capture_screen(self) -> None:
+        """Asynchronously capture the screen."""
         with mss.mss() as sct:
             monitor = sct.monitors[self.config.monitor_index]  # Configurable monitor index
+            # print(monitor)
             screenshot = sct.grab(monitor)
             img = np.array(screenshot)
             self.screenshot_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -142,14 +142,14 @@ class ImageMatcher:
 
     def find_object_location(
         self, kp1: List[cv2.KeyPoint], kp2: List[cv2.KeyPoint], good_matches: List, min_match_count: int
-        ) -> Tuple[Optional[Tuple[int, int]], Optional[np.ndarray]]:
+    ) -> Tuple[Optional[Tuple[int, int]], Optional[np.ndarray]]:
         if len(good_matches) > min_match_count:
             src_pts = np.float32([kp1[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
             dst_pts = np.float32([kp2[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
             M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
 
             h, w = self.template_image.shape[:2]
-            pts = np.float32([[0, 0], [0, h-1], [w-1, h-1], [w-1, 0]]).reshape(-1, 1, 2)
+            pts = np.float32([[0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0]]).reshape(-1, 1, 2)
             dst = cv2.perspectiveTransform(pts, M)
 
             self.object_location = np.int32(dst)
@@ -158,7 +158,7 @@ class ImageMatcher:
             logging.warning(f"Not enough matches are found - {len(good_matches)}/{min_match_count}")
             self.object_location = None
             self.object_center = None
-        
+        # print(f"len(good_matches): {len(good_matches)}")
         return self.object_center, self.object_location
 
     def draw_object_location(self, color: Tuple[int, int, int] = (0, 255, 0), thickness: int = 3) -> None:
@@ -185,37 +185,41 @@ class ImageMatcher:
     async def run(self) -> None:
         await self.process_image()
         logging.info(f"Object center: {self.object_center}")
-        
-        if self.config.show is False : pass
-        elif self.config.show is True : self.draw_object_location()
 
+        if self.config.show:
+            self.draw_object_location()
 
-    async def get_object_location(self) -> Tuple[Optional[Tuple[int, int]], Optional[np.ndarray]]:
-        await self.run()
+    def run_sync(self):
+        """Run the async method synchronously using an event loop."""
+        asyncio.run(self.run())
+
+    def get_object_location_sync(self):
+        """Run the async method synchronously and return the object location."""
+        asyncio.run(self.run())
         return self.object_center, self.object_location
+
 
 def parse_args(path) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Image Matcher Configuration")
     parser.add_argument('--config', type=str, help='Path to the configuration file', default=path)
     return parser.parse_args()
 
+
 def main(path=None, **kwargs):
     args = parse_args(path)
-    injector = Injector([ConfigModule(config_path= args.config, **kwargs)])
+    injector = Injector([ConfigModule(config_path=args.config, **kwargs)])
     config = injector.get(ConfigModel)
     matcher = ImageMatcher(config=config)
-    asyncio.run(matcher.run())
+    matcher.run_sync()
+    return matcher
+
+def image_matcher(path=None, **kwargs):
+    args = parse_args(path)
+    injector = Injector([ConfigModule(config_path=args.config, **kwargs)])
+    config = injector.get(ConfigModel)
+    matcher = ImageMatcher(config=config)
+    matcher.run_sync()
     return matcher
 
 if __name__ == "__main__":
     main()
-
-
-
-# import pyautovision
-# # a = pyautovision.main(r'myvenv/config/autovision.yaml')
-# # a = pyautovision.main()
-# a = pyautovision.main(monitor_index=1, min_match_count=15)
-# # a = pyautovision.main(monitor_index=1, min_match_count=15, template_path="myvenv/imgs/write_email.JPG")
-
-
