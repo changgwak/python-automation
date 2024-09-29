@@ -62,6 +62,9 @@ wa.click_at(38, 864, visible=False)
 # wa.click_at(4501, 1394, visible=True)
 
 
+## get current mouse location & drag mouse
+wa.get_mouse_location()
+# wa.drag_mouse([100, 1], [150, 100], time=1, visible=False) 
 
 
 ## Image feature matching

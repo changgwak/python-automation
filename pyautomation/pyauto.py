@@ -13,6 +13,8 @@ This means that the code can be freely copied and distributed, and costs nothing
 
 from . import msuiauto as msauto
 # import msuiauto as msauto
+from .modules import mss
+# import mss
 
 import logging
 import os
@@ -133,6 +135,10 @@ class WinAuto:
     def __init__(self, config: Config = None):
         self.config = config
         self.scale_factor = self.get_scale_factor()
+
+        # in order to refine coordinate
+        with mss.mss() as sct:
+            pass
 
     def get_scale_factor(self):
     #     import displayinfo as pydis
@@ -288,6 +294,85 @@ class WinAuto:
             win32gui.PostMessage(hwnd, win32con.WM_LBUTTONDOWN, win32con.MK_LBUTTON, lParam)
             win32api.Sleep(100)
             win32gui.PostMessage(hwnd, win32con.WM_LBUTTONUP, win32con.MK_LBUTTON, lParam)
+
+    @log_exceptions(LogLevel.ERROR)
+    def get_mouse_location(self) -> Tuple[int, int]:
+        """
+        Get the current position of the mouse cursor.
+        :return: Tuple containing the x and y coordinates of the mouse.
+        """
+        try:
+            x, y = win32api.GetCursorPos()
+            logger.info(f"Current mouse location: ({x}, {y})")
+            return x, y
+        except Exception as e:
+            logger.error(f"Error in get_mouse_location: {e}")
+            raise WinAutoError("Failed to get mouse location")
+
+    @log_exceptions(LogLevel.ERROR)
+    def drag_mouse(self, start: List[int], end: List[int], time: int = 1, visible: bool = False) -> None:
+        """
+        Simulate dragging the mouse from one position to another.
+        :param start: Starting x,y coordinate.
+        :param end: Ending x, y coordinate.
+        :time: interval second
+        :param visible: If true, move the mouse cursor visibly. Defaults to False.
+        """
+        try:
+            start_x, start_y = start
+            end_x, end_y = end 
+            duration= time*1000
+            
+            # if scale_factor is not None :
+            #     scale_factor_monitor = scale_factor
+            # elif scale_factor is None:
+            #     scale_factor_monitor = self.scale_factor
+
+            # print("scale_factor_monitor: ", scale_factor_monitor)
+            # scaled_x, scaled_y = self._apply_scaling(x, y, scale_factor_monitor)
+            if visible:
+                steps = 100  # Number of steps for smooth dragging
+                step_delay = duration // steps  # Time delay between each step
+                x_step = (end_x - start_x) / steps
+                y_step = (end_y - start_y) / steps
+
+                # Move to the start position and press the left mouse button
+                win32api.SetCursorPos((start_x, start_y))
+                win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
+
+                # Smoothly move the mouse in small increments
+                for i in range(steps):
+                    intermediate_x = int(start_x + x_step * i)
+                    intermediate_y = int(start_y + y_step * i)
+                    win32api.SetCursorPos((intermediate_x, intermediate_y))
+                    win32api.Sleep(step_delay)
+
+                # Move to the end position and release the left mouse button
+                win32api.SetCursorPos((end_x, end_y))
+                win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
+            else:
+                # Simulate movement invisibly (background)
+                hwnd = win32gui.WindowFromPoint((start_x, start_y))
+                client_coords = win32gui.ScreenToClient(hwnd, (start_x, start_y))
+                lParam_start = win32api.MAKELONG(client_coords[0], client_coords[1])
+                win32gui.PostMessage(hwnd, win32con.WM_ACTIVATE, win32con.WA_ACTIVE, 0)
+                win32gui.PostMessage(hwnd, win32con.WM_LBUTTONDOWN, win32con.MK_LBUTTON, lParam_start)
+                win32api.Sleep(duration)                
+
+                hwnd = win32gui.WindowFromPoint((end_x, end_y))
+                client_coords_end = win32gui.ScreenToClient(hwnd, (end_x, end_y))
+                lParam_end = win32api.MAKELONG(client_coords_end[0], client_coords_end[1])
+                
+                win32gui.PostMessage(hwnd, win32con.WM_MOUSEMOVE, win32con.MK_LBUTTON, lParam_end)
+                win32gui.PostMessage(hwnd, win32con.WM_ACTIVATE, win32con.WA_ACTIVE, 0)
+                win32gui.PostMessage(hwnd, win32con.WM_LBUTTONUP, win32con.MK_LBUTTON, lParam_end)
+
+            logger.info(f"Mouse dragged from ({start_x}, {start_y}) to ({end_x}, {end_y}) and released")
+
+        except Exception as e:
+            logger.error(f"Error in drag_mouse: {e}")
+            raise WinAutoError("Failed to drag mouse")
+
 
 
 
@@ -448,3 +533,6 @@ def test_click_at_invisible(mocker):
     mock_post_message.assert_any_call(12345, win32con.WM_LBUTTONUP, win32con.MK_LBUTTON, 100)
 
 # More tests can be added for each method to ensure all edge cases are covered.
+
+
+
