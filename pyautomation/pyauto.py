@@ -173,6 +173,17 @@ class WinAuto:
 
         return relative_center_x, relative_center_y
 
+    @log_exceptions(LogLevel.ERROR)
+    def get_absolute_location(self, child_control: Any) -> Tuple[int, int]:
+        """Calculates the absolute location of the child control[left, top, right, bottom]."""
+        child_rectangle = child_control.BoundingRectangle
+
+        absolute_x = (child_rectangle.left - child_rectangle.right)/2.
+        absolute_y = (child_rectangle.top - child_rectangle.bottom)/2.
+
+        return absolute_x, absolute_y
+
+
     @profile
     @log_exceptions(LogLevel.ERROR)
     def walk_and_find(self, control: Any, depth: int = 0, debug: bool = False) -> Tuple[Optional[Any], Optional[int]]:
@@ -206,13 +217,13 @@ class WinAuto:
         return found_controls
 
     @log_exceptions(LogLevel.ERROR)
-    def click_relative_location(self, parent_control: Any, x: int, y: int) -> None:
+    def click_relative_location(self, parent_control: Any, x: int, y: int, time: float = 0.0) -> None:
         """Clicks at a relative location within the parent control."""
         hWnd = parent_control.NativeWindowHandle
         lParam = win32api.MAKELONG(x, y)
         win32gui.PostMessage(hWnd, win32con.WM_ACTIVATE, win32con.WA_ACTIVE, 0)
         win32gui.PostMessage(hWnd, win32con.WM_LBUTTONDOWN, win32con.MK_LBUTTON, lParam)
-        win32api.Sleep(100)
+        win32api.Sleep(time)
         win32gui.PostMessage(hWnd, win32con.WM_LBUTTONUP, win32con.MK_LBUTTON, lParam)
 
     @log_exceptions(LogLevel.ERROR)
@@ -224,13 +235,24 @@ class WinAuto:
         win32gui.PostMessage(hWnd, win32con.WM_KEYUP, win32con.VK_RETURN, 0)
 
     @log_exceptions(LogLevel.ERROR)
-    def click_direct_child(self, child_control: Any) -> None:
+    def click_direct_child(self, child_control: Any, time: float = 0.0) -> None:
         """Clicks directly on a child control."""
         hwnd = child_control.NativeWindowHandle
         win32gui.PostMessage(hwnd, win32con.WM_ACTIVATE, win32con.WA_ACTIVE, 0)
         win32gui.PostMessage(hwnd, win32con.WM_LBUTTONDOWN, win32con.MK_LBUTTON, 0)
-        win32api.Sleep(100)
+        win32api.Sleep(time)
         win32gui.PostMessage(hwnd, win32con.WM_LBUTTONUP, win32con.MK_LBUTTON, 0)
+
+    @log_exceptions(LogLevel.ERROR)
+    def click_direct_hwnd(self, native_window_handle: Any, time: float = 0.0) -> None:
+        """Clicks directly on a child control."""
+        # if hwnd is hexadecimal, then you need to convert from hexadecimal string to decimal number int. "int(hexadecimal string, 16)".
+        hwnd = native_window_handle
+        win32gui.PostMessage(hwnd, win32con.WM_ACTIVATE, win32con.WA_ACTIVE, 0)
+        win32gui.PostMessage(hwnd, win32con.WM_LBUTTONDOWN, win32con.MK_LBUTTON, 0)
+        win32api.Sleep(time)
+        win32gui.PostMessage(hwnd, win32con.WM_LBUTTONUP, win32con.MK_LBUTTON, 0)
+
 
     @log_exceptions(LogLevel.ERROR)
     def type_text(self, hwnd: int, text: str) -> None:
@@ -285,14 +307,14 @@ class WinAuto:
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
 
-    def _invisible_click(self, x: int, y: int) -> None:
+    def _invisible_click(self, x: int, y: int, time: float = 0.0) -> None:
         hwnd = win32gui.WindowFromPoint((x, y))
         if hwnd:
             client_coords = win32gui.ScreenToClient(hwnd, (x, y))
             lParam = win32api.MAKELONG(client_coords[0], client_coords[1])
             win32gui.PostMessage(hwnd, win32con.WM_ACTIVATE, win32con.WA_ACTIVE, 0)
             win32gui.PostMessage(hwnd, win32con.WM_LBUTTONDOWN, win32con.MK_LBUTTON, lParam)
-            win32api.Sleep(100)
+            win32api.Sleep(time)
             win32gui.PostMessage(hwnd, win32con.WM_LBUTTONUP, win32con.MK_LBUTTON, lParam)
 
     @log_exceptions(LogLevel.ERROR)

@@ -94,25 +94,4 @@ Click this [git repo](https://github.com/changgwak/python-automation/tree/master
 
 
 
-## How to update PYPI (for only project manager)
 
-### Revision codes
-1. Update on Github after modifying codes.
-
-### Update version
-
-1. Update `__version__` in `__init__.py` file in package
-2. Update `version` in `setup.py` file (Same setting as first step)
-3. Update after addtion, if `install_requires` is added in `setup.py`
-
-### Generate whl file
-```bash
-python setup.py sdist bdist_wheel
-python setup.py bdist_wheel
-```
-
-> Upload whl file
-```bash
-python -m twine upload dist/*
-twine upload dist/pyautomation-X.X.X-py3-none-any.whl
-```
