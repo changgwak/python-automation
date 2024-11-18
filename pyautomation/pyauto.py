@@ -147,7 +147,7 @@ class WinAuto:
         return None
 
     @log_exceptions(LogLevel.ERROR)
-    def get_info(self, control: Any, depth: int = 0, delimiter: str = "") -> None:
+    def show_info(self, control: Any, depth: int = 0, delimiter: str = "") -> None:
         """Prints information about the control."""
         child_handle = control.NativeWindowHandle
         child_name = control.Name
@@ -155,6 +155,17 @@ class WinAuto:
         child_location = control.BoundingRectangle
         child_classname = control.ClassName
         logger.info(f"{delimiter} Depth: {depth}, Window Handle: {child_handle}, name: {child_name}, control_type: {child_controltype}, location: {child_location}, classname: {child_classname}")
+
+    @log_exceptions(LogLevel.ERROR)
+    def get_info(self, control: Any, depth: int = 0, delimiter: str = "") -> Any:
+        """Prints information about the control."""
+        child_handle = control.NativeWindowHandle
+        child_name = control.Name
+        child_controltype = control.LocalizedControlType
+        child_location = control.BoundingRectangle
+        child_classname = control.ClassName
+        return delimiter, depth, child_handle,child_name, child_controltype, child_location, child_classname
+
 
     @log_exceptions(LogLevel.ERROR)
     def get_relative_location(self, parent_control: Any, child_control: Any) -> Tuple[int, int]:
@@ -178,8 +189,8 @@ class WinAuto:
         """Calculates the absolute location of the child control[left, top, right, bottom]."""
         child_rectangle = child_control.BoundingRectangle
 
-        absolute_x = (child_rectangle.left - child_rectangle.right)/2.
-        absolute_y = (child_rectangle.top - child_rectangle.bottom)/2.
+        absolute_x = (child_rectangle.left + child_rectangle.right)/2.
+        absolute_y = (child_rectangle.top + child_rectangle.bottom)/2.
 
         return absolute_x, absolute_y
 
@@ -201,6 +212,23 @@ class WinAuto:
 
     @profile
     @log_exceptions(LogLevel.ERROR)
+    def show_walk_and_find_all(self, control: Any, condition: Optional[Callable[[Any], bool]] = None, depth: int = 0) -> List[Tuple[Any, int]]:
+        """Recursively finds all controls that match the condition."""
+        found_controls = []
+        if condition is None:
+            condition = lambda x: True
+
+        if condition(control):
+            found_controls.append((control, depth))
+
+        for child in control.GetChildren():
+            self.show_info(child, depth, "****child")
+            found_controls.extend(self.walk_and_find_all(child, condition, depth + 1))
+
+        return found_controls
+
+    @profile
+    @log_exceptions(LogLevel.ERROR)
     def walk_and_find_all(self, control: Any, condition: Optional[Callable[[Any], bool]] = None, depth: int = 0) -> List[Tuple[Any, int]]:
         """Recursively finds all controls that match the condition."""
         found_controls = []
@@ -216,8 +244,36 @@ class WinAuto:
 
         return found_controls
 
+    @profile
+    @log_exceptions(logging.ERROR)
+    def find_control_with_retry(self, control_class: Any, search_depth: int, name: str, class_name: str, max_retries=None):
+        """Finds a control with retry logic."""
+        retries = 0
+        while max_retries is None or retries < max_retries:
+            try:
+                # Create the control instance using the provided control class
+                control_instance = control_class(searchDepth=search_depth, Name=name, ClassName=class_name)
+                
+                if control_instance is not None:
+                    # print(f"{control_class.__name__} found: {control_instance}")
+                    # logging.info(f"{control_class.__name__} found: {control_instance}")
+                    return control_instance
+                else:
+                    # print(f"{control_class.__name__} not found, retrying...")
+                    logging.warning(f"{control_class.__name__} not found, retrying...")
+            except Exception as e:
+                # print(f"Exception occurred: {e}")
+                logging.error(f"Exception occurred in find_control_with_retry: {e}")
+
+            time.sleep(1)  # Wait for 1 second before retrying
+            retries += 1
+
+        return None
+
+
+
     @log_exceptions(LogLevel.ERROR)
-    def click_relative_location(self, parent_control: Any, x: int, y: int, time: float = 0.0) -> None:
+    def click_relative_location(self, parent_control: Any, x: int, y: int, time: int = 0) -> None:
         """Clicks at a relative location within the parent control."""
         hWnd = parent_control.NativeWindowHandle
         lParam = win32api.MAKELONG(x, y)
@@ -235,7 +291,7 @@ class WinAuto:
         win32gui.PostMessage(hWnd, win32con.WM_KEYUP, win32con.VK_RETURN, 0)
 
     @log_exceptions(LogLevel.ERROR)
-    def click_direct_child(self, child_control: Any, time: float = 0.0) -> None:
+    def click_direct_child(self, child_control: Any, time: int = 0) -> None:
         """Clicks directly on a child control."""
         hwnd = child_control.NativeWindowHandle
         win32gui.PostMessage(hwnd, win32con.WM_ACTIVATE, win32con.WA_ACTIVE, 0)
@@ -244,7 +300,7 @@ class WinAuto:
         win32gui.PostMessage(hwnd, win32con.WM_LBUTTONUP, win32con.MK_LBUTTON, 0)
 
     @log_exceptions(LogLevel.ERROR)
-    def click_direct_hwnd(self, native_window_handle: Any, time: float = 0.0) -> None:
+    def click_direct_hwnd(self, native_window_handle: Any, time: int = 0) -> None:
         """Clicks directly on a child control."""
         # if hwnd is hexadecimal, then you need to convert from hexadecimal string to decimal number int. "int(hexadecimal string, 16)".
         hwnd = native_window_handle
@@ -307,7 +363,7 @@ class WinAuto:
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
 
-    def _invisible_click(self, x: int, y: int, time: float = 0.0) -> None:
+    def _invisible_click(self, x: int, y: int, time: int = 0) -> None:
         hwnd = win32gui.WindowFromPoint((x, y))
         if hwnd:
             client_coords = win32gui.ScreenToClient(hwnd, (x, y))
