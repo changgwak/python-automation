@@ -223,7 +223,7 @@ class WinAuto:
 
         for child in control.GetChildren():
             self.show_info(child, depth, "****child")
-            found_controls.extend(self.walk_and_find_all(child, condition, depth + 1))
+            found_controls.extend(self.show_walk_and_find_all(child, condition, depth + 1))
 
         return found_controls
 
@@ -311,19 +311,64 @@ class WinAuto:
 
 
     @log_exceptions(LogLevel.ERROR)
-    def type_text(self, hwnd: int, text: str) -> None:
-        """Types text into a window."""
-        for char in text:
-            if char == "\n":
-                win32gui.PostMessage(hwnd, win32con.WM_KEYDOWN, win32con.VK_RETURN, 0)
-                win32gui.PostMessage(hwnd, win32con.WM_KEYUP, win32con.VK_RETURN, 0)
-            else:
-                win32gui.PostMessage(hwnd, win32con.WM_CHAR, ord(char), 0)
+    def send_input(self, hwnd: int, input_data: str | int) -> None:
+        """
+        Sends input to a window. Handles:
+        - Text input (str)
+        - Special keys or single keys (int: virtual key codes)
+        Usage: 
+        - self.send_input(hwnd, "Hello\nWorld")
+        - self.send_input(hwnd, win32con.VK_RETURN) # Enter
+        """
+        if isinstance(input_data, str):
+            for char in input_data:
+                if char == "\n":
+                    self._send_key(hwnd, win32con.VK_RETURN)
+                else:
+                    win32gui.PostMessage(hwnd, win32con.WM_CHAR, ord(char), 0)
+        elif isinstance(input_data, int):
+            self._send_key(hwnd, input_data)
+        else:
+            raise ValueError("Input data must be either a string or an integer (key code).")
+
+    @log_exceptions(LogLevel.ERROR)
+    def send_special_key(self, hwnd: int, key: str) -> None:
+        """
+        Sends special keys like Enter, Arrow keys, etc., to a window using predefined key mappings.
+        Usage:
+        - self.send_special_key(hwnd, "{Enter}")
+        """
+        key_map = {
+            "{Enter}": win32con.VK_RETURN,
+            "{Right Arrow}": win32con.VK_RIGHT,
+            "{Space}": win32con.VK_SPACE,
+            "{Left Arrow}": win32con.VK_LEFT,
+            "{Up Arrow}": win32con.VK_UP,
+            "{Down Arrow}": win32con.VK_DOWN,
+            "{Tab}": win32con.VK_TAB,
+        }
+        
+        key_code = key_map.get(key)
+        if key_code is not None:
+            self._send_key(hwnd, key_code)
+        else:
+            raise ValueError(f"Unsupported special key: {key}")
+
+    @log_exceptions(LogLevel.ERROR)
+    def clear_text(self, hwnd: int) -> None:
+        """Clears the text in a window."""
+        win32gui.SendMessage(hwnd, win32con.WM_SETTEXT, 0, "")
+
+    def _send_key(self, hwnd: int, key_code: int) -> None:
+        """Helper function to send a single key press (keydown and keyup)."""
+        win32gui.PostMessage(hwnd, win32con.WM_KEYDOWN, key_code, 0)
+        win32gui.PostMessage(hwnd, win32con.WM_KEYUP, key_code, 0)
 
     @log_exceptions(LogLevel.ERROR)
     def hotkey_event(self) -> None:
         """Placeholder for handling hotkey events."""
         pass
+    
 
     @log_exceptions(LogLevel.ERROR)
     def get_all_children(self, root: Any) -> None:
@@ -399,7 +444,7 @@ class WinAuto:
         try:
             start_x, start_y = start
             end_x, end_y = end 
-            duration= time*1000
+            duration= time*100
             
             # if scale_factor is not None :
             #     scale_factor_monitor = scale_factor
