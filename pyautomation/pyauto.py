@@ -158,7 +158,7 @@ class WinAuto:
 
     @log_exceptions(LogLevel.ERROR)
     def get_info(self, control: Any, depth: int = 0, delimiter: str = "") -> Any:
-        """Prints information about the control."""
+        """Get information about the control."""
         child_handle = control.NativeWindowHandle
         child_name = control.Name
         child_controltype = control.LocalizedControlType
@@ -244,32 +244,82 @@ class WinAuto:
 
         return found_controls
 
+
     @profile
     @log_exceptions(logging.ERROR)
-    def find_control_with_retry(self, control_class: Any, search_depth: int, name: str, class_name: str, max_retries=None):
-        """Finds a control with retry logic."""
+    def find_control_with_retry(self, control_class: Type[Any], search_depth: int, name: str, class_name: Optional[str] = None, max_retries: Optional[int] = None) -> Optional[Any]:
+        """
+        Finds a control with retry logic.
+
+        Parameters:
+        - control_class (Type[Any]): The class type of the control to find.
+        - search_depth (int): The depth to search for the control.
+        - name (str): The name of the control.
+        - class_name (Optional[str], optional): The class name of the control. Defaults to None.
+        - max_retries (Optional[int], optional): The maximum number of retries. Defaults to None.
+
+        Returns:
+        - Optional[Any]: The found control or None if not found.
+        """
+    
+
+        # Ensure search_depth is a positive integer
+        if not isinstance(search_depth, int) or search_depth <= 0:
+            raise ValueError("search_depth must be a positive integer")
+
+        # Ensure max_retries is a non-negative integer or None
+        if max_retries is not None and (not isinstance(max_retries, int) or max_retries < 0):
+            raise ValueError("max_retries must be a non-negative integer or None")
+
         retries = 0
         while max_retries is None or retries < max_retries:
             try:
                 # Create the control instance using the provided control class
-                control_instance = control_class(searchDepth=search_depth, Name=name, ClassName=class_name)
-                
+                if class_name is not None:
+                    control_instance = control_class(searchDepth=search_depth, Name=name, ClassName=class_name)
+                else:
+                    control_instance = control_class(searchDepth=search_depth, Name=name)
+
                 if control_instance is not None:
-                    # print(f"{control_class.__name__} found: {control_instance}")
                     # logging.info(f"{control_class.__name__} found: {control_instance}")
                     return control_instance
                 else:
-                    # print(f"{control_class.__name__} not found, retrying...")
                     logging.warning(f"{control_class.__name__} not found, retrying...")
             except Exception as e:
-                # print(f"Exception occurred: {e}")
                 logging.error(f"Exception occurred in find_control_with_retry: {e}")
 
             time.sleep(1)  # Wait for 1 second before retrying
             retries += 1
 
+        logging.error("Control not found after all retries")
         return None
 
+
+
+    @log_exceptions(LogLevel.ERROR)
+    def send_direct_mouse_scroll(self, hwnd: int, scroll_amount: int) -> None:
+        """
+        Simulates a mouse scroll event by positioning the cursor over the window using only pywin32.
+        
+        :param hwnd: The handle of the target window.
+        :param scroll_amount: The scroll amount (positive for up, negative for down).
+        """
+        # Get the window's bounding rectangle
+        rect = win32gui.GetWindowRect(hwnd)
+        x = (rect[0] + rect[2]) // 2  # X-coordinate (center of the window)
+        y = (rect[1] + rect[3]) // 2  # Y-coordinate (center of the window)
+        
+        # Move the cursor to the center of the window
+        # win32api.SetCursorPos((x, y))
+        
+        # Calculate the scroll delta
+        delta = scroll_amount * 120  # 120 units per scroll step (standard)
+        wParam = delta << 16  # High word is the scroll delta
+        # Convert the screen coordinates to lParam
+        lParam = win32api.MAKELONG(x, y)
+        # Send the WM_MOUSEWHEEL message
+        win32gui.PostMessage(hwnd, win32con.WM_MOUSEWHEEL, wParam, lParam)
+        # logging.info(f"Mouse scroll simulated with amount {scroll_amount} at ({x}, {y}).")
 
 
     @log_exceptions(LogLevel.ERROR)
@@ -311,7 +361,7 @@ class WinAuto:
 
 
     @log_exceptions(LogLevel.ERROR)
-    def send_input(self, hwnd: int, input_data: str | int) -> None:
+    def send_text(self, hwnd: int, input_data: str | int) -> None:
         """
         Sends input to a window. Handles:
         - Text input (str)
