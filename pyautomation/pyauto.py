@@ -294,32 +294,14 @@ class WinAuto:
         logging.error("Control not found after all retries")
         return None
 
-
-
+    @profile
     @log_exceptions(LogLevel.ERROR)
-    def send_direct_mouse_scroll(self, hwnd: int, scroll_amount: int) -> None:
-        """
-        Simulates a mouse scroll event by positioning the cursor over the window using only pywin32.
-        
-        :param hwnd: The handle of the target window.
-        :param scroll_amount: The scroll amount (positive for up, negative for down).
-        """
-        # Get the window's bounding rectangle
-        rect = win32gui.GetWindowRect(hwnd)
-        x = (rect[0] + rect[2]) // 2  # X-coordinate (center of the window)
-        y = (rect[1] + rect[3]) // 2  # Y-coordinate (center of the window)
-        
-        # Move the cursor to the center of the window
-        # win32api.SetCursorPos((x, y))
-        
-        # Calculate the scroll delta
-        delta = scroll_amount * 120  # 120 units per scroll step (standard)
-        wParam = delta << 16  # High word is the scroll delta
-        # Convert the screen coordinates to lParam
-        lParam = win32api.MAKELONG(x, y)
-        # Send the WM_MOUSEWHEEL message
-        win32gui.PostMessage(hwnd, win32con.WM_MOUSEWHEEL, wParam, lParam)
-        # logging.info(f"Mouse scroll simulated with amount {scroll_amount} at ({x}, {y}).")
+    def get_all_children(self, root: Any) -> None:
+        """Gets and logs information about all child controls."""
+        children = root.GetChildren()
+        for child in children:
+            self.get_info(child, 0, "GetChildren")
+
 
 
     @log_exceptions(LogLevel.ERROR)
@@ -358,6 +340,48 @@ class WinAuto:
         win32gui.PostMessage(hwnd, win32con.WM_LBUTTONDOWN, win32con.MK_LBUTTON, 0)
         win32api.Sleep(time)
         win32gui.PostMessage(hwnd, win32con.WM_LBUTTONUP, win32con.MK_LBUTTON, 0)
+
+
+    @log_exceptions(LogLevel.ERROR)
+    def click_at(self, x: int, y: int, visible: bool = False, scale_factor: Optional[float] = None) -> None:
+        """Clicks at a specified screen location, optionally scaled and made visible."""
+        try:
+            if scale_factor is not None :
+                scale_factor_monitor = scale_factor
+            elif scale_factor is None:
+                scale_factor_monitor = self.scale_factor
+
+            # print("scale_factor_monitor: ", scale_factor_monitor)
+            scaled_x, scaled_y = self._apply_scaling(x, y, scale_factor_monitor)
+            if visible:
+                self._visible_click(scaled_x, scaled_y)
+            else:
+                self._invisible_click(scaled_x, scaled_y)
+        except Exception as e:
+            logger.error(f"Error in click_at: {e}")
+            raise WinAutoError("Failed to click at specified location")
+
+
+    def _apply_scaling(self, x: int, y: int, scale_factor: Optional[float]) -> Tuple[int, int]:
+        scale_factor = 1.0
+        if scale_factor:
+            return round(x / scale_factor), round(y / scale_factor)
+        return x, y
+
+    def _visible_click(self, x: int, y: int) -> None:
+        win32api.SetCursorPos((x, y))
+        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
+        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
+
+    def _invisible_click(self, x: int, y: int, time: int = 0) -> None:
+        hwnd = win32gui.WindowFromPoint((x, y))
+        if hwnd:
+            client_coords = win32gui.ScreenToClient(hwnd, (x, y))
+            lParam = win32api.MAKELONG(client_coords[0], client_coords[1])
+            win32gui.PostMessage(hwnd, win32con.WM_ACTIVATE, win32con.WA_ACTIVE, 0)
+            win32gui.PostMessage(hwnd, win32con.WM_LBUTTONDOWN, win32con.MK_LBUTTON, lParam)
+            win32api.Sleep(time)
+            win32gui.PostMessage(hwnd, win32con.WM_LBUTTONUP, win32con.MK_LBUTTON, lParam)
 
 
     @log_exceptions(LogLevel.ERROR)
@@ -421,66 +445,30 @@ class WinAuto:
     
 
     @log_exceptions(LogLevel.ERROR)
-    def get_all_children(self, root: Any) -> None:
-        """Gets and logs information about all child controls."""
-        children = root.GetChildren()
-        for child in children:
-            self.get_info(child, 0, "GetChildren")
-
-    @log_exceptions(LogLevel.ERROR)
-    def click_at(self, x: int, y: int, visible: bool = False, scale_factor: Optional[float] = None) -> None:
-        """Clicks at a specified screen location, optionally scaled and made visible."""
-        try:
-            if scale_factor is not None :
-                scale_factor_monitor = scale_factor
-            elif scale_factor is None:
-                scale_factor_monitor = self.scale_factor
-
-            # print("scale_factor_monitor: ", scale_factor_monitor)
-            scaled_x, scaled_y = self._apply_scaling(x, y, scale_factor_monitor)
-            if visible:
-                self._visible_click(scaled_x, scaled_y)
-            else:
-                self._invisible_click(scaled_x, scaled_y)
-        except Exception as e:
-            logger.error(f"Error in click_at: {e}")
-            raise WinAutoError("Failed to click at specified location")
-
-
-    def _apply_scaling(self, x: int, y: int, scale_factor: Optional[float]) -> Tuple[int, int]:
-        scale_factor = 1.0
-        if scale_factor:
-            return round(x / scale_factor), round(y / scale_factor)
-        return x, y
-
-    def _visible_click(self, x: int, y: int) -> None:
-        win32api.SetCursorPos((x, y))
-        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
-        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
-
-    def _invisible_click(self, x: int, y: int, time: int = 0) -> None:
-        hwnd = win32gui.WindowFromPoint((x, y))
-        if hwnd:
-            client_coords = win32gui.ScreenToClient(hwnd, (x, y))
-            lParam = win32api.MAKELONG(client_coords[0], client_coords[1])
-            win32gui.PostMessage(hwnd, win32con.WM_ACTIVATE, win32con.WA_ACTIVE, 0)
-            win32gui.PostMessage(hwnd, win32con.WM_LBUTTONDOWN, win32con.MK_LBUTTON, lParam)
-            win32api.Sleep(time)
-            win32gui.PostMessage(hwnd, win32con.WM_LBUTTONUP, win32con.MK_LBUTTON, lParam)
-
-    @log_exceptions(LogLevel.ERROR)
-    def get_mouse_location(self) -> Tuple[int, int]:
+    def send_direct_mouse_scroll(self, hwnd: int, scroll_amount: int) -> None:
         """
-        Get the current position of the mouse cursor.
-        :return: Tuple containing the x and y coordinates of the mouse.
+        Simulates a mouse scroll event by positioning the cursor over the window using only pywin32.
+        
+        :param hwnd: The handle of the target window.
+        :param scroll_amount: The scroll amount (positive for up, negative for down).
         """
-        try:
-            x, y = win32api.GetCursorPos()
-            logger.info(f"Current mouse location: ({x}, {y})")
-            return x, y
-        except Exception as e:
-            logger.error(f"Error in get_mouse_location: {e}")
-            raise WinAutoError("Failed to get mouse location")
+        # Get the window's bounding rectangle
+        rect = win32gui.GetWindowRect(hwnd)
+        x = (rect[0] + rect[2]) // 2  # X-coordinate (center of the window)
+        y = (rect[1] + rect[3]) // 2  # Y-coordinate (center of the window)
+        
+        # Move the cursor to the center of the window
+        # win32api.SetCursorPos((x, y))
+        
+        # Calculate the scroll delta
+        delta = scroll_amount * 120  # 120 units per scroll step (standard)
+        wParam = delta << 16  # High word is the scroll delta
+        # Convert the screen coordinates to lParam
+        lParam = win32api.MAKELONG(x, y)
+        # Send the WM_MOUSEWHEEL message
+        win32gui.PostMessage(hwnd, win32con.WM_MOUSEWHEEL, wParam, lParam)
+        # logging.info(f"Mouse scroll simulated with amount {scroll_amount} at ({x}, {y}).")
+
 
     @log_exceptions(LogLevel.ERROR)
     def drag_mouse(self, start: List[int], end: List[int], time: int = 1, visible: bool = False) -> None:
@@ -547,7 +535,19 @@ class WinAuto:
             raise WinAutoError("Failed to drag mouse")
 
 
-
+    # @log_exceptions(LogLevel.ERROR)
+    def get_mouse_location(self) -> Tuple[int, int]:
+        """
+        Get the current position of the mouse cursor.
+        :return: Tuple containing the x and y coordinates of the mouse.
+        """
+        try:
+            x, y = win32api.GetCursorPos()
+            logger.info(f"Current mouse location: ({x}, {y})")
+            return x, y
+        except Exception as e:
+            logger.error(f"Error in get_mouse_location: {e}")
+            raise WinAutoError("Failed to get mouse location")
 
 
     @log_exceptions(LogLevel.ERROR)
